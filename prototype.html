@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Breathing App Prototype</title>
+    <style>
+        :root {
+            --primary: #2A9D8F;
+            --primary-light: #4DB6AC;
+            --bg-color: #F0F4F8;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-dark: #264653;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', sans-serif;
+            background-color: #dae0e5; /* Desktop background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* Mobile Frame */
+        .mobile-frame {
+            width: 375px;
+            height: 812px;
+            background-color: var(--bg-color);
+            border-radius: 40px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+            border: 8px solid #333;
+        }
+
+        /* Notch */
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 30px;
+            background-color: #333;
+            border-bottom-left-radius: 20px;
+            border-bottom-right-radius: 20px;
+            z-index: 1000;
+        }
+
+        /* Navigation Bar (Glass) */
+        .bottom-nav {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 80px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border-top: 1px solid var(--glass-border);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 500;
+            padding-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #999;
+            font-size: 10px;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .nav-item.active {
+            color: var(--primary);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        /* Views */
+        .view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 50px 20px 100px 20px;
+            box-sizing: border-box;
+            display: none;
+            flex-direction: column;
+            overflow-y: auto;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .view.active {
+            display: flex;
+            opacity: 1;
+        }
+
+        h1 {
+            color: var(--text-dark);
+            margin: 0 0 20px 0;
+        }
+
+        /* Home View Components */
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            text-align: center;
+            width: 100%;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(42, 157, 143, 0.3);
+        }
+
+        /* Session View (Fullscreen Liquid) */
+        #session-view {
+            padding: 0;
+            justify-content: flex-end; /* Align controls to bottom */
+        }
+        
+        .liquid-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background: white;
+        }
+
+        .wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 200%;
+            height: 100%; /* Will be animated */
+            background: rgba(42, 157, 143, 0.8);
+            transform: translateY(100%); /* Start empty */
+            transition: transform 0.1s linear;
+            will-change: transform;
+        }
+        
+        /* SVG Wave shape */
+        .wave::after {
+            content: "";
+            position: absolute;
+            top: -50px;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            background: url('data:image/svg+xml;utf8,<svg viewBox="0 0 1200 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none"><path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" fill="rgba(42,157,143,0.8)"></path></svg>');
+            background-size: 50% 100%;
+            animation: wave-animation 4s linear infinite;
+        }
+
+        @keyframes wave-animation {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .session-overlay {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none; /* Let clicks pass through */
+        }
+
+        .breath-counter {
+            font-size: 120px;
+            font-weight: bold;
+            color: #264653; /* Dark text when empty */
+            transition: color 0.5s;
+        }
+        
+        .breath-label {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #264653;
+             transition: color 0.5s;
+        }
+
+        .session-controls {
+            position: absolute;
+            bottom: 40px;
+            display: flex;
+            gap: 20px;
+            pointer-events: auto;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 30px;
+            background: white;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            font-size: 24px;
+            color: var(--primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Utility */
+        .text-light { color: white !important; }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="mobile-frame">
+    <div class="notch"></div>
+
+    <!-- HOME VIEW -->
+    <div id="home-view" class="view active">
+        <h1>Dzień dobry, Jan</h1>
+        <div class="card">
+            <h3>Szybki start</h3>
+            <p>Buteyko Standard</p>
+            <button class="btn-primary" onclick="navigateTo('session')">Rozpocznij</button>
+        </div>
+        <div class="card">
+            <h3>Test Kontrolny (CP)</h3>
+            <p>Ostatni: 32s</p>
+            <button style="color: var(--primary); background: none; border: 1px solid var(--primary); padding: 10px; border-radius: 10px; width: 100%; cursor: pointer;">Nowy pomiar</button>
+        </div>
+        <div class="card">
+            <h3>Statystyki</h3>
+             <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="width: 60px; height: 60px; border-radius: 50%; border: 5px solid var(--primary); display: flex; align-items: center; justify-content: center; font-weight: bold;">12/20</div>
+                <div>Minuty dzisiaj</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SESSION VIEW -->
+    <div id="session-view" class="view">
+        
+        <div class="liquid-container">
+            <div id="liquid-wave" class="wave"></div>
+        </div>
+
+        <div class="session-overlay">
+            <div id="breath-label" class="breath-label">Wdech</div>
+            <div id="breath-count" class="breath-counter">4</div>
+        </div>
+
+        <div class="session-controls">
+            <button class="control-btn" onclick="navigateTo('home')">✕</button>
+            <button class="control-btn" id="play-pause-btn" onclick="toggleSession()">❚❚</button>
+        </div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div id="settings-view" class="view">
+        <h1>Ustawienia</h1>
+        <div class="card">
+            <div style="padding: 10px 0; border-bottom: 1px solid #eee;">Profil</div>
+            <div style="padding: 10px 0; border-bottom: 1px solid #eee;">Dźwięki</div>
+            <div style="padding: 10px 0;">Wibracje</div>
+        </div>
+    </div>
+
+    <!-- METHODS VIEW (Placeholder) -->
+    <div id="methods-view" class="view">
+        <h1>Metody</h1>
+        <div class="card">
+            <h3>Buteyko</h3>
+            <p>Klasyczna metoda</p>
+        </div>
+        <div class="card">
+            <h3>Guillarme</h3>
+            <p>Trening przepony</p>
+        </div>
+    </div>
+
+    <!-- HISTORY VIEW (Placeholder) -->
+    <div id="history-view" class="view">
+        <h1>Historia</h1>
+        <div class="card">
+            <h3>Wczoraj</h3>
+            <p>15 min • Sesja poranna</p>
+        </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="navigateTo('home')">
+            <span class="nav-icon">🏠</span>
+            Home
+        </div>
+        <div class="nav-item" onclick="navigateTo('methods')">
+            <span class="nav-icon">💨</span>
+            Metody
+        </div>
+        <div class="nav-item" onclick="navigateTo('history')">
+            <span class="nav-icon">📅</span>
+            Historia
+        </div>
+        <div class="nav-item" onclick="navigateTo('settings')">
+            <span class="nav-icon">⚙️</span>
+            Ustawienia
+        </div>
+    </div>
+</div>
+
+<script>
+    const views = ['home', 'session', 'settings', 'methods', 'history'];
+    let isSessionRunning = false;
+    let breathTime = 4;
+    let phase = 'inhale'; // inhale, hold, exhale, pause
+    let liquidLevel = 0; // 0 to 100%
+    let interval;
+
+    function navigateTo(viewId) {
+        // Hide all
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+        // Show target
+        const target = document.getElementById(viewId + '-view');
+        if(target) target.classList.add('active');
+
+        // Nav state
+        if(viewId !== 'session') {
+            // Find nav item index roughly (simplified)
+            if(viewId == 'home') document.querySelectorAll('.nav-item')[0].classList.add('active');
+            if(viewId == 'methods') document.querySelectorAll('.nav-item')[1].classList.add('active');
+            if(viewId == 'history') document.querySelectorAll('.nav-item')[2].classList.add('active');
+            if(viewId == 'settings') document.querySelectorAll('.nav-item')[3].classList.add('active');
+        }
+
+        if(viewId === 'session') {
+            startSession();
+        } else {
+            stopSession();
+        }
+    }
+
+    function startSession() {
+        isSessionRunning = true;
+        phase = 'inhale';
+        breathTime = 1;
+        liquidLevel = 0;
+        
+        clearInterval(interval);
+        interval = setInterval(gameLoop, 1000); // 1 sec tick
+        
+        document.getElementById('breath-label').innerText = "Wdech";
+        document.getElementById('play-pause-btn').innerText = '❚❚';
+        
+        // Start animation
+        const wave = document.getElementById('liquid-wave');
+        wave.style.transition = "transform 4s linear";
+        // Force reflow
+        void wave.offsetWidth;
+        wave.style.transform = "translateY(0%)"; // Fill up
+    }
+
+    function stopSession() {
+        isSessionRunning = false;
+        clearInterval(interval);
+        document.getElementById('liquid-wave').style.transition = "transform 0.5s ease-out";
+        document.getElementById('liquid-wave').style.transform = "translateY(100%)";
+    }
+
+    function toggleSession() {
+        isSessionRunning = !isSessionRunning;
+        const btn = document.getElementById('play-pause-btn');
+        btn.innerText = isSessionRunning ? '❚❚' : '▶';
+        
+        const wave = document.getElementById('liquid-wave');
+
+        if(!isSessionRunning) {
+            // Pause animation
+            const computedStyle = window.getComputedStyle(wave);
+            const matrix = new DOMMatrix(computedStyle.transform);
+            wave.style.transition = 'none';
+            wave.style.transform = `translateY(${matrix.m42}px)`;
+        } else {
+            // Resume (simplified logic for prototype)
+            // Just restart phase from current point would be complex in pure CSS without JS animation library
+            // So we just resume moving to target
+            
+            if(phase === 'inhale') {
+                 wave.style.transition = `transform 2s linear`; // Approximate remaining time
+                 wave.style.transform = "translateY(0%)";
+            } else {
+                 wave.style.transition = `transform 2s linear`;
+                 wave.style.transform = "translateY(100%)";
+            }
+        }
+    }
+
+    // A simple Breathing State Machine
+    let currentCount = 0;
+    const INHALE_TIME = 4;
+    const EXHALE_TIME = 6;
+    
+    function gameLoop() {
+        if(!isSessionRunning) return;
+
+        currentCount++;
+        document.getElementById('breath-count').innerText = currentCount;
+
+        // Simple Toggle Logic
+        const wave = document.getElementById('liquid-wave');
+        const label = document.getElementById('breath-label');
+        const countText = document.getElementById('breath-count');
+
+        // Check phase transitions
+        if(phase === 'inhale') {
+             if(currentCount >= INHALE_TIME) {
+                 // Switch to Exhale
+                 phase = 'exhale';
+                 currentCount = 0;
+                 label.innerText = "Wydech";
+                 
+                 wave.style.transition = `transform ${EXHALE_TIME}s linear`;
+                 wave.style.transform = "translateY(100%)"; // Drain
+                 
+                 label.style.color = "#264653";
+                 countText.style.color = "#264653";
+             } else {
+                 // Text color white when full?
+                 if(currentCount >= 3) {
+                     label.style.color = "white";
+                     countText.style.color = "white";
+                 }
+             }
+        } else if (phase === 'exhale') {
+            if(currentCount >= EXHALE_TIME) {
+                // Switch to Inhale
+                phase = 'inhale';
+                currentCount = 0; // Will be 1 next tick
+                label.innerText = "Wdech";
+                
+                wave.style.transition = `transform ${INHALE_TIME}s linear`;
+                wave.style.transform = "translateY(0%)"; // Fill
+                
+                label.style.color = "#264653";
+                countText.style.color = "#264653";
+            }
+        }
+    }
+
+</script>
+
+</body>
+</html>

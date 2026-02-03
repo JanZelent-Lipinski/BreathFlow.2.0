@@ -1,0 +1,21 @@
+# Foldery budowania i tymczasowe
+build/
+build_old/
+.dart_tool/
+.pub-cache/
+.pub/
+
+# Pliki binarne i specyficzne dla systemów
+windows/
+android/
+ios/
+macos/
+linux/
+
+# IDE i inne
+.idea/
+.vscode/
+*.so
+*.pdb
+*.apk
+*.dll
